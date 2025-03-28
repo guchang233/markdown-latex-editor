@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MarkTeX 编辑器启动页</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      background-color: #f5f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 20px;
+      margin-top: 30px;
+    }
+    h1 {
+      color: #0366d6;
+      border-bottom: 1px solid #eaecef;
+      padding-bottom: 10px;
+    }
+    .note {
+      background-color: #fffde7;
+      border-left: 4px solid #ffeb3b;
+      padding: 10px 15px;
+      margin: 20px 0;
+    }
+    .error {
+      background-color: #fdecea;
+      border-left: 4px solid #f44336;
+      padding: 10px 15px;
+      margin: 20px 0;
+    }
+    .button {
+      display: inline-block;
+      background-color: #2ea44f;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .button:hover {
+      background-color: #2c974b;
+    }
+    code {
+      background-color: #f6f8fa;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 85%;
+    }
+    pre {
+      background-color: #f6f8fa;
+      padding: 16px;
+      border-radius: 6px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>MarkTeX 编辑器启动页</h1>
+    
+    <div class="note">
+      <p><strong>提示:</strong> 此页面是为了帮助您在无法直接使用 npm 命令时启动编辑器。</p>
+    </div>
+    
+    <h2>方法一：直接启动（推荐）</h2>
+    <p>点击下面的按钮在新窗口中打开编辑器：</p>
+    <a class="button" href="index.html" target="_blank">启动 MarkTeX 编辑器</a>
+    
+    <h2>方法二：解决 PowerShell 执行策略限制</h2>
+    <p>如果您无法通过 <code>npm run dev</code> 命令启动应用，请按照以下步骤解决 PowerShell 执行策略限制：</p>
+    
+    <ol>
+      <li>
+        <p>使用命令提示符 (CMD) 而不是 PowerShell：</p>
+        <pre>cmd /c "npm run dev"</pre>
+      </li>
+      <li>
+        <p>或者，以管理员身份打开 PowerShell 并执行以下命令：</p>
+        <pre>Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser</pre>
+        <p>然后您可以正常使用 <code>npm run dev</code> 命令</p>
+      </li>
+    </ol>
+    
+    <h2>方法三：使用修复脚本</h2>
+    <p>运行修复脚本以解决依赖问题：</p>
+    <pre>node fix-project.js</pre>
+    
+    <div class="error">
+      <p><strong>疑难解答:</strong></p>
+      <p>如果编辑器仍然无法正常工作，请尝试以下步骤：</p>
+      <ul>
+        <li>清除浏览器缓存并重新加载</li>
+        <li>确保运行了最新版本的修复脚本</li>
+        <li>检查控制台是否有错误信息（按 F12 打开开发者工具）</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // 检测浏览器是否能直接打开文件
+    if (window.location.protocol === 'file:') {
+      console.log('通过文件协议打开，直接链接可能不起作用。建议使用本地服务器。');
+    }
+  </script>
+</body>
+</html> 
