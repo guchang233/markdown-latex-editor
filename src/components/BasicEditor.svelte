@@ -1,75 +1,77 @@
-<script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { themeStore } from '../stores/theme';
+<script>
+  import { onMount } from 'svelte';
   import { documentStore } from '../stores/document';
-  import { settingsStore } from '../stores/settings';
-  import MarkdownToolbar from './MarkdownToolbar.svelte';
   import { renderMarkdown } from '../utils/markdown';
+  import MarkdownToolbar from './MarkdownToolbar.svelte';
   import SettingsDialog from './SettingsDialog.svelte';
   import ExportDialogFixed from './ExportDialogFixed.svelte';
   
-  // 导入编辑器助手函数
-  import { createEditor, createFallbackEditor, showFallbackNotice } from '../utils/codeEditorHelper';
+  // DOM elements
+  let editorContainer;
+  let previewContainer;
   
-  // 导入CodeMirror包 - 使用分号确保终止
-  import * as state from '@codemirror/state';
-  import * as view from '@codemirror/view';
-  import * as langMarkdown from '@codemirror/lang-markdown';
-  import * as commands from '@codemirror/commands';
-  import * as language from '@codemirror/language';
-  
-  // 使用导入的模块
-  const { EditorState } = state;
-  const { EditorView } = view;
-  const { markdown } = langMarkdown;
-  const { defaultKeymap, history, historyKeymap } = commands;
-  const { syntaxHighlighting, defaultHighlightStyle } = language;
-  
-  // 编辑器和预览元素
-  let editorContainer: HTMLElement;
-  let previewContainer: HTMLElement;
-  
-  // 状态变量
-  let editorInstance: any = null;
+  // State
   let previewContent = '';
   let showSettingsDialog = false;
   let editorReady = false;
   let showExportDialog = false;
   
-  // 默认内容
+  // Default content
   const defaultContent = "# 欢迎使用 MarkTeX 编辑器\n\n这是一个简化版编辑器。";
   
-  // 简单的预览更新函数
-  function updatePreview(content: string): void {
+  // Update preview
+  function updatePreview(content) {
     previewContent = renderMarkdown(content);
   }
   
-  // 打开设置对话框
-  function openSettings(): void {
+  // Open settings dialog
+  function openSettings() {
     showSettingsDialog = true;
   }
   
-  // 打开导出对话框
-  function openExportDialog(): void {
-    console.log('Opening export dialog');
+  // Open export dialog
+  function openExportDialog() {
+    console.log('Opening export dialog (before):', showExportDialog);
     showExportDialog = true;
+    console.log('Opening export dialog (after):', showExportDialog);
   }
   
-  // 处理导出事件
-  function handleExport(event): void {
-    const { format, includeStyles, filename, includeToc, pageSize, codeTheme } = event.detail;
+  // Handle export
+  function handleExport(event) {
+    const { format, includeStyles, filename, includeToc, paperSize, codeTheme } = event.detail;
     console.log('处理导出:', format, filename);
     
-    // 处理不同的导出格式
     if (format === 'html') {
-      // 导出为HTML
+      // Export as HTML
       const html = renderMarkdown($documentStore.currentContent || defaultContent);
+      
+      // Use template literals for the style tag to avoid unterminated string issues
+      const styleTag = includeStyles 
+        ? `<style>
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              line-height: 1.6;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+              color: #333;
+            }
+            h1, h2, h3 { margin-top: 1.5em; }
+            pre {
+              background: #f5f5f5;
+              padding: 10px;
+              border-radius: 4px;
+              overflow-x: auto;
+            }
+          </style>` 
+        : '';
+      
       const fullHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <title>${filename}</title>
-  ${includeStyles ? '<style>body{font-family:system-ui,-apple-system,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:20px;color:#333}h1,h2,h3{margin-top:1.5em}pre{background:#f5f5f5;padding:10px;border-radius:4px;overflow-x:auto}</style>' : ''}
+  ${styleTag}
 </head>
 <body>
   ${includeToc ? '<div class="toc"><h2>目录</h2>...</div>' : ''}
@@ -77,7 +79,7 @@
 </body>
 </html>`;
       
-      // 创建临时链接并下载
+      // Download HTML
       const blob = new Blob([fullHtml], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -86,40 +88,70 @@
       a.click();
       URL.revokeObjectURL(url);
     } else if (format === 'pdf') {
-      // 打开打印窗口让用户导出为PDF
+      // Export as PDF using print dialog
       const printWindow = window.open('', '_blank');
       const html = renderMarkdown($documentStore.currentContent || defaultContent);
       
-      // 不使用变量，避免CSS预处理器错误
+      // 注意：这里我们不使用任何变量，而是直接将所有内容硬编码，避免CSS预处理器错误
       let pdfStyle = '';
       
-      // 根据用户选择的纸张大小设置样式
-      if (pageSize === 'letter') {
+      // 根据用户选择的纸张大小设置CSS
+      if (paperSize === 'letter') {
         pdfStyle = `
           <style>
-            /* 使用letter纸张大小 */
-            body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #333; margin: 2cm; }
+            /* Letter paper size */
+            body { 
+              font-family: system-ui, -apple-system, sans-serif; 
+              line-height: 1.6; 
+              color: #333;
+              margin: 2cm;
+            }
             h1, h2, h3 { margin-top: 1.5em; }
-            pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+            pre { 
+              background: #f5f5f5; 
+              padding: 10px; 
+              border-radius: 4px; 
+              overflow-x: auto; 
+            }
           </style>
         `;
-      } else if (pageSize === 'legal') {
+      } else if (paperSize === 'legal') {
         pdfStyle = `
           <style>
-            /* 使用legal纸张大小 */
-            body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #333; margin: 2cm; }
+            /* Legal paper size */
+            body { 
+              font-family: system-ui, -apple-system, sans-serif; 
+              line-height: 1.6; 
+              color: #333;
+              margin: 2cm;
+            }
             h1, h2, h3 { margin-top: 1.5em; }
-            pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+            pre { 
+              background: #f5f5f5; 
+              padding: 10px; 
+              border-radius: 4px; 
+              overflow-x: auto; 
+            }
           </style>
         `;
       } else {
         // 默认使用A4
         pdfStyle = `
           <style>
-            /* 使用A4纸张大小 */
-            body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #333; margin: 2cm; }
+            /* A4 paper size */
+            body { 
+              font-family: system-ui, -apple-system, sans-serif; 
+              line-height: 1.6; 
+              color: #333;
+              margin: 2cm;
+            }
             h1, h2, h3 { margin-top: 1.5em; }
-            pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+            pre { 
+              background: #f5f5f5; 
+              padding: 10px; 
+              border-radius: 4px; 
+              overflow-x: auto; 
+            }
           </style>
         `;
       }
@@ -142,7 +174,7 @@
         printWindow.close();
       }, 500);
     } else {
-      // 导出为Markdown
+      // Export as Markdown
       const blob = new Blob([$documentStore.currentContent || defaultContent], { type: 'text/markdown' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -153,42 +185,55 @@
     }
   }
   
-  // 处理工具栏动作
-  function handleToolbarAction(event: any): void {
+  // Handle toolbar actions
+  function handleToolbarAction(event) {
     const { action, placeholder } = event.detail;
     console.log(`工具栏动作: ${action}`);
   }
   
+  // Handle textarea input
+  function handleTextareaChange(event) {
+    const content = event.target.value;
+    documentStore.updateContent(content);
+    updatePreview(content);
+  }
+  
   onMount(() => {
     console.log('编辑器组件已挂载');
-    console.log('导出对话框初始状态:', showExportDialog);
     
-    // 明确设置对话框为关闭状态
+    // 强制确保对话框在初始化时是关闭的
     showExportDialog = false;
     
-    // 创建一个导出事件处理函数
+    // 防止对话框意外打开
+    setTimeout(() => {
+      if (showExportDialog) {
+        console.log('强制关闭导出对话框');
+        showExportDialog = false;
+      }
+    }, 100);
+    
+    // Handle export document event
     const handleExportDocumentEvent = (event) => {
       console.log('收到导出文档事件');
-      // 不要自动打开导出对话框 - 注释掉或删除下面这行
-      // openExportDialog();
+      // 不要自动打开对话框，除非用户明确请求
     };
     
-    // 添加事件监听器以监听来自Header的导出事件
+    // Add event listener
     window.addEventListener('export-document', handleExportDocumentEvent);
     
+    // Set editor ready
     editorReady = true;
     
-    // 初始化内容
+    // Initialize content
     if (!$documentStore.currentContent) {
       documentStore.updateContent(defaultContent);
     }
     
-    // 初始预览渲染
+    // Initial preview
     updatePreview($documentStore.currentContent || defaultContent);
     
     return () => {
-      console.log('编辑器组件卸载');
-      // 移除事件监听器
+      // Remove event listener
       window.removeEventListener('export-document', handleExportDocumentEvent);
     };
   });
@@ -199,18 +244,18 @@
     <MarkdownToolbar on:action={handleToolbarAction} editorReady={editorReady} />
     
     <div class="flex items-center gap-2">
-      <!-- 导出按钮 -->
+      <!-- Export button -->
       <button 
-        class="export-button"
+        class="export-btn"
         title="导出文档"
         on:click={openExportDialog}
       >
         导出
       </button>
       
-      <!-- 设置按钮 -->
+      <!-- Settings button -->
       <button 
-        class="settings-button"
+        class="settings-btn"
         title="打开设置"
         on:click={openSettings}
       >
@@ -220,7 +265,7 @@
   </div>
   
   <div class="mt-4 flex flex-col md:flex-row h-[calc(100vh-200px)] overflow-hidden rounded-lg shadow-md">
-    <!-- 编辑器面板 -->
+    <!-- Editor panel -->
     <div 
       class="flex-1 bg-base-100 dark:bg-base-100-dark border border-base-300 dark:border-base-300-dark overflow-auto"
       bind:this={editorContainer}
@@ -228,10 +273,11 @@
       <textarea
         class="w-full h-full p-4 border-none outline-none resize-none"
         value={$documentStore.currentContent || defaultContent}
+        on:input={handleTextareaChange}
       ></textarea>
     </div>
     
-    <!-- 预览面板 -->
+    <!-- Preview panel -->
     <div 
       class="flex-1 bg-base-100 dark:bg-base-100-dark border-t md:border-t-0 md:border-l border-base-300 dark:border-base-300-dark overflow-auto"
       bind:this={previewContainer}
@@ -243,14 +289,13 @@
   </div>
 </div>
 
-<!-- 对话框组件 -->
+<!-- Dialogs -->
 <SettingsDialog bind:isOpen={showSettingsDialog} />
 <ExportDialogFixed bind:isOpen={showExportDialog} on:export={handleExport} />
 
 <style>
-  /* Button styling */
-  .settings-button,
-  .export-button {
+  .export-btn, 
+  .settings-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -262,21 +307,18 @@
     transition: all 0.2s ease;
   }
   
-  /* Dark mode button styling */
-  :global(.dark) .settings-button,
-  :global(.dark) .export-button {
+  :global(.dark) .export-btn, 
+  :global(.dark) .settings-btn {
     border-color: #374151;
   }
   
-  /* Hover effects */
-  .settings-button:hover,
-  .export-button:hover {
+  .export-btn:hover, 
+  .settings-btn:hover {
     background-color: rgba(0, 0, 0, 0.05);
   }
   
-  /* Dark mode hover effects */
-  :global(.dark) .settings-button:hover,
-  :global(.dark) .export-button:hover {
+  :global(.dark) .export-btn:hover, 
+  :global(.dark) .settings-btn:hover {
     background-color: rgba(255, 255, 255, 0.05);
   }
 </style> 

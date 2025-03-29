@@ -8,7 +8,8 @@ export default {
       transpileOnly: false,
       // 以下选项帮助类型检查与 Svelte 更好地兼容
       compilerOptions: {
-        moduleResolution: 'node'
+        moduleResolution: 'node',
+        verbatimModuleSyntax: true
       }
     }
   })

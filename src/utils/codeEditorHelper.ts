@@ -5,11 +5,18 @@
  * 以避免包引用和多实例问题
  */
 
-import { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
-import { markdown } from '@codemirror/lang-markdown';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import * as state from '@codemirror/state';
+import * as view from '@codemirror/view';
+import * as langMarkdown from '@codemirror/lang-markdown';
+import * as commands from '@codemirror/commands';
+import * as language from '@codemirror/language';
+
+// Extract specific exports
+const { EditorState } = state;
+const { EditorView } = view;
+const { markdown } = langMarkdown;
+const { defaultKeymap, history, historyKeymap } = commands;
+const { syntaxHighlighting, defaultHighlightStyle } = language;
 
 // 统一的扩展实例
 let sharedExtensions: any = null;
@@ -63,24 +70,24 @@ export function createEditor(
   container: HTMLElement, 
   content: string,
   updateCallback: (content: string) => void
-): EditorView {
+): view.EditorView {
   try {
     // 获取扩展
     const extensions = getExtensions(updateCallback);
     
     // 创建编辑器状态
-    const state = EditorState.create({
+    const editorState = EditorState.create({
       doc: content,
       extensions
     });
     
     // 创建编辑器视图
-    const view = new EditorView({
-      state,
+    const editorView = new EditorView({
+      state: editorState,
       parent: container
     });
     
-    return view;
+    return editorView;
   } catch (error) {
     console.error('Failed to create CodeMirror editor:', error);
     throw error;

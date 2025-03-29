@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Editor from './components/Editor.svelte';
+  import BasicEditor from './components/BasicEditor.svelte';
   import Header from './components/Header.svelte';
   import Footer from './components/Footer.svelte';
   import ThemeToggle from './components/ThemeToggle.svelte';
   import { themeStore } from './stores/theme';
   
   let appReady = false;
+  let editorVisible = false;
   
   // 检测KaTeX是否已加载
   function checkKaTeXLoaded() {
@@ -47,6 +48,8 @@
   }
   
   onMount(() => {
+    console.log('App组件已挂载');
+    
     // 初始化主题
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -58,6 +61,17 @@
     // 加载必要资源
     loadFonts();
     loadKaTeX();
+    
+    // 在应用准备就绪后，延迟显示编辑器
+    const checkAppReady = setInterval(() => {
+      if (appReady) {
+        clearInterval(checkAppReady);
+        // 延迟 300ms 后显示编辑器，确保所有状态都已正确初始化
+        setTimeout(() => {
+          editorVisible = true;
+        }, 300);
+      }
+    }, 100);
   });
   
   // Subscribe to theme changes
@@ -77,8 +91,8 @@
   <Header />
   
   <div class="container mx-auto px-4 py-6">
-    {#if appReady}
-      <Editor />
+    {#if appReady && editorVisible}
+      <BasicEditor />
     {:else}
       <div class="w-full h-[calc(100vh-200px)] flex items-center justify-center">
         <div class="spinner"></div>
@@ -94,10 +108,5 @@
 </main>
 
 <style>
-  .app-container {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    width: 100%;
-  }
+  /* App-specific styles can be added here if needed */
 </style> 

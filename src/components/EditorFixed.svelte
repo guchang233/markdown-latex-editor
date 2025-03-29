@@ -8,29 +8,11 @@
   import SettingsDialog from './SettingsDialog.svelte';
   import ExportDialogFixed from './ExportDialogFixed.svelte';
   
-  // 导入编辑器助手函数
-  import { createEditor, createFallbackEditor, showFallbackNotice } from '../utils/codeEditorHelper';
-  
-  // 导入CodeMirror包 - 使用分号确保终止
-  import * as state from '@codemirror/state';
-  import * as view from '@codemirror/view';
-  import * as langMarkdown from '@codemirror/lang-markdown';
-  import * as commands from '@codemirror/commands';
-  import * as language from '@codemirror/language';
-  
-  // 使用导入的模块
-  const { EditorState } = state;
-  const { EditorView } = view;
-  const { markdown } = langMarkdown;
-  const { defaultKeymap, history, historyKeymap } = commands;
-  const { syntaxHighlighting, defaultHighlightStyle } = language;
-  
   // 编辑器和预览元素
-  let editorContainer: HTMLElement;
-  let previewContainer: HTMLElement;
+  let editorContainer;
+  let previewContainer;
   
   // 状态变量
-  let editorInstance: any = null;
   let previewContent = '';
   let showSettingsDialog = false;
   let editorReady = false;
@@ -40,23 +22,23 @@
   const defaultContent = "# 欢迎使用 MarkTeX 编辑器\n\n这是一个简化版编辑器。";
   
   // 简单的预览更新函数
-  function updatePreview(content: string): void {
+  function updatePreview(content) {
     previewContent = renderMarkdown(content);
   }
   
   // 打开设置对话框
-  function openSettings(): void {
+  function openSettings() {
     showSettingsDialog = true;
   }
   
   // 打开导出对话框
-  function openExportDialog(): void {
+  function openExportDialog() {
     console.log('Opening export dialog');
     showExportDialog = true;
   }
   
   // 处理导出事件
-  function handleExport(event): void {
+  function handleExport(event) {
     const { format, includeStyles, filename, includeToc, pageSize, codeTheme } = event.detail;
     console.log('处理导出:', format, filename);
     
@@ -154,9 +136,16 @@
   }
   
   // 处理工具栏动作
-  function handleToolbarAction(event: any): void {
+  function handleToolbarAction(event) {
     const { action, placeholder } = event.detail;
     console.log(`工具栏动作: ${action}`);
+  }
+  
+  // 处理文本区域变化
+  function handleTextareaChange(event) {
+    const content = event.target.value;
+    documentStore.updateContent(content);
+    updatePreview(content);
   }
   
   onMount(() => {
@@ -169,7 +158,7 @@
     // 创建一个导出事件处理函数
     const handleExportDocumentEvent = (event) => {
       console.log('收到导出文档事件');
-      // 不要自动打开导出对话框 - 注释掉或删除下面这行
+      // 不要自动打开导出对话框
       // openExportDialog();
     };
     
@@ -196,7 +185,7 @@
 
 <div class="w-full flex flex-col">
   <div class="flex justify-between items-center mb-2">
-    <MarkdownToolbar on:action={handleToolbarAction} editorReady={editorReady} />
+    <MarkdownToolbar on:action={handleToolbarAction} {editorReady} />
     
     <div class="flex items-center gap-2">
       <!-- 导出按钮 -->
@@ -228,6 +217,7 @@
       <textarea
         class="w-full h-full p-4 border-none outline-none resize-none"
         value={$documentStore.currentContent || defaultContent}
+        on:input={handleTextareaChange}
       ></textarea>
     </div>
     
@@ -248,7 +238,6 @@
 <ExportDialogFixed bind:isOpen={showExportDialog} on:export={handleExport} />
 
 <style>
-  /* Button styling */
   .settings-button,
   .export-button {
     display: flex;
@@ -262,19 +251,16 @@
     transition: all 0.2s ease;
   }
   
-  /* Dark mode button styling */
   :global(.dark) .settings-button,
   :global(.dark) .export-button {
     border-color: #374151;
   }
   
-  /* Hover effects */
   .settings-button:hover,
   .export-button:hover {
     background-color: rgba(0, 0, 0, 0.05);
   }
   
-  /* Dark mode hover effects */
   :global(.dark) .settings-button:hover,
   :global(.dark) .export-button:hover {
     background-color: rgba(255, 255, 255, 0.05);

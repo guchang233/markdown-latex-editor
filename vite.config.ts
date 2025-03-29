@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import UnoCSS from 'unocss/vite';
 import { resolve } from 'path';
+import sveltePreprocess from 'svelte-preprocess';
 
 // 添加 Node.js 进程环境类型声明
 declare global {
@@ -21,9 +22,23 @@ export default defineConfig({
       // enable run-time checks when not in production
       compilerOptions: {
         dev: process.env.NODE_ENV !== 'production'
-      }
+      },
+      // Add preprocessor for TypeScript 
+      preprocess: sveltePreprocess({
+        typescript: {
+          compilerOptions: {
+            verbatimModuleSyntax: true,
+            isolatedModules: true
+          }
+        }
+      })
     })
   ],
+  esbuild: {
+    logOverride: { 'unsupported-jsx-comment': 'silent' },
+    // Add target to avoid syntax issues
+    target: 'es2020'
+  },
   // 解决方案：确保所有 @codemirror/* 包引用同一个实例
   resolve: {
     dedupe: [
@@ -57,7 +72,7 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['@codemirror/state', '@codemirror/view', 'remarkable', 'katex', 'prismjs'],
+    include: ['@codemirror/state', '@codemirror/view', '@codemirror/language', '@codemirror/commands', '@codemirror/lang-markdown', 'remarkable', 'katex', 'prismjs'],
     // 强制预构建，确保依赖被正确地捆绑
     force: true
   },

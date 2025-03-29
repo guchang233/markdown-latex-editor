@@ -1,14 +1,20 @@
 <script lang="ts">
   import { themeStore } from '../stores/theme';
+  import { onMount } from 'svelte';
   
   // Document state tracking
   let documentState: 'saved' | 'saving' | 'unsaved' = 'saved';
   
   // Export the current document
   function exportDocument() {
+    console.log('Header: Export button clicked');
     const event = new CustomEvent('export-document');
     window.dispatchEvent(event);
   }
+  
+  onMount(() => {
+    console.log('Header component mounted');
+  });
 </script>
 
 <header class="w-full bg-base-100 dark:bg-base-100-dark shadow-sm border-b border-base-300 dark:border-base-300-dark">
