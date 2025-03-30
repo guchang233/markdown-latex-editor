@@ -33,7 +33,23 @@
     katexScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js';
     katexScript.async = true;
     katexScript.onload = () => {
-      appReady = true;
+      // KaTeX加载完成后，加载auto-render扩展
+      const autoRenderScript = document.createElement('script');
+      autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/contrib/auto-render.min.js';
+      autoRenderScript.async = true;
+      autoRenderScript.onload = () => {
+        // 配置KaTeX自动渲染
+        if (window.renderMathInElement) {
+          window.renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });
+        }
+        appReady = true;
+      };
+      document.head.appendChild(autoRenderScript);
     };
     
     document.head.appendChild(katexScript);
@@ -85,16 +101,18 @@
 <svelte:head>
   <title>MarkTeX - Markdown & LaTeX 编辑器</title>
   <meta name="description" content="MarkTeX是一个强大的Markdown和LaTeX公式编辑器，支持实时预览和多种导出格式。">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
 </svelte:head>
 
-<main class="min-h-screen w-full bg-base-200 dark:bg-base-200-dark text-neutral dark:text-neutral-dark font-sans transition-colors duration-200">
+<main class="min-h-screen h-screen flex flex-col w-full bg-base-200 dark:bg-base-200-dark text-neutral dark:text-neutral-dark font-sans transition-colors duration-200 overflow-hidden">
   <Header />
   
-  <div class="container mx-auto px-4 py-6">
+  <div class="flex-grow overflow-auto" id="app-main-container">
     {#if appReady && editorVisible}
       <BasicEditor />
     {:else}
-      <div class="w-full h-[calc(100vh-200px)] flex items-center justify-center">
+      <div class="w-full h-full flex items-center justify-center">
         <div class="spinner"></div>
       </div>
     {/if}
@@ -109,4 +127,22 @@
 
 <style>
   /* App-specific styles can be added here if needed */
+  :global(:root) {
+    --color-base-100: #ffffff;
+    --color-base-200: #f8fafc;
+    --color-base-300: #e5e7eb;
+    --color-text: #1f2937;
+    --color-text-muted: #6b7280;
+    
+    --color-base-100-dark: #1e293b;
+    --color-base-200-dark: #0f172a;
+    --color-base-300-dark: #374151;
+    --color-text-dark: #f3f4f6;
+    --color-text-muted-dark: #9ca3af;
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    
+    --radius: 0.375rem;
+  }
 </style> 

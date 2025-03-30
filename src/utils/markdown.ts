@@ -81,9 +81,11 @@ export function renderMarkdown(markdownText: string): string {
       // KaTeX不可用时，简单替换回原始文本
       for (const [placeholder, original] of Object.entries(placeholders)) {
         if (placeholder.startsWith('__LATEX_BLOCK_')) {
-          html = html.replace(placeholder, `<div class="math-block">${original.replace(/^\$\$([\s\S]*?)\$\$$/g, '$1')}</div>`);
+          // 保留原始的 $$ 标记，以便在导出时可以被 auto-render 识别
+          html = html.replace(placeholder, `<div class="math-block">${original}</div>`);
         } else if (placeholder.startsWith('__LATEX_INLINE_')) {
-          html = html.replace(placeholder, `<span class="math-inline">${original.replace(/^\$([^\$]+)\$$/g, '$1')}</span>`);
+          // 保留原始的 $ 标记，以便在导出时可以被 auto-render 识别
+          html = html.replace(placeholder, `<span class="math-inline">${original}</span>`);
         }
       }
       
@@ -114,8 +116,26 @@ function processMarkdown(text: string): string {
     const safeCode = code
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    return `<pre><code>${safeCode}</code></pre>`;
+    return `<pre class="code-block"><code>${safeCode}</code></pre>`;
   });
+  
+  // 创建一个临时数组来保存HTML标签，以便在转换过程中保护它们
+  interface HtmlTag {
+    placeholder: string;
+    content: string;
+  }
+  const htmlTags: HtmlTag[] = [];
+  let tagCounter = 0;
+  
+  // 保存HTML标签的函数
+  function saveHtmlTag(match: string): string {
+    const placeholder = `__HTML_TAG_${tagCounter++}__`;
+    htmlTags.push({ placeholder, content: match });
+    return placeholder;
+  }
+  
+  // 保护已经处理的HTML内容 (主要是表格)
+  text = text.replace(/<div class="table-container">[\s\S]*?<\/div>/g, saveHtmlTag);
   
   // 标题处理
   let html = text
@@ -128,7 +148,7 @@ function processMarkdown(text: string): string {
     .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/gim, '<em>$1</em>')
     .replace(/~~(.*?)~~/gim, '<del>$1</del>')
-    .replace(/`([^`]+)`/gim, '<code>$1</code>');
+    .replace(/`([^`]+)`/gim, '<code class="code-inline">$1</code>');
   
   // 链接
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
@@ -152,8 +172,13 @@ function processMarkdown(text: string): string {
     .replace(/<li>\[\s\] (.*?)<\/li>/gim, '<li class="task-list-item"><input type="checkbox" disabled> $1</li>')
     .replace(/<li>\[x\] (.*?)<\/li>/gim, '<li class="task-list-item"><input type="checkbox" checked disabled> $1</li>');
   
-  // 换行转为<br>标签
+  // 换行转为<br>标签 - 但跳过已经在HTML标签中的内容
   html = html.replace(/\n/gim, '<br>');
+  
+  // 还原所有保存的HTML标签
+  htmlTags.forEach(tag => {
+    html = html.replace(tag.placeholder, tag.content);
+  });
   
   return html;
 }
@@ -175,10 +200,8 @@ function processMarkdownTables(text: string): string {
     const line = lines[i];
     const trimmedLine = line.trim();
     
-    // 简化表格行检测：如果包含至少两个管道符并且至少一个在开头或结尾
-    const isPotentialTableRow = trimmedLine.includes('|') && 
-                                (trimmedLine.startsWith('|') || trimmedLine.endsWith('|')) &&
-                                (trimmedLine.split('|').length >= 3);
+    // 检测表格行 - 简化检测逻辑，只要包含管道符就可能是表格行
+    const isPotentialTableRow = trimmedLine.includes('|');
     
     if (isPotentialTableRow) {
       // 如果不在表格中，检查是否是有效表格的开始
@@ -202,9 +225,15 @@ function processMarkdownTables(text: string): string {
       // 非表格行
       if (inTable) {
         // 已经收集了表格的所有行，处理表格
-        const tableHtml = convertTableToHtml(tableLines);
-        result.push(tableHtml);
-        console.log('表格行数:', tableLines.length, '转换后:', tableHtml);
+        if (tableLines.length >= 2) {
+          // 只有当至少有表头和分隔符行时才处理
+          const tableHtml = convertTableToHtml(tableLines);
+          result.push(tableHtml);
+          console.log('表格行数:', tableLines.length, '转换后HTML:', tableHtml.substring(0, 50) + '...');
+        } else {
+          // 不是有效的表格，原样返回行
+          result = result.concat(tableLines);
+        }
         inTable = false;
         tableLines = [];
       }
@@ -213,10 +242,13 @@ function processMarkdownTables(text: string): string {
   }
   
   // 如果文本结束时仍在表格中
-  if (inTable && tableLines.length > 0) {
+  if (inTable && tableLines.length >= 2) {
     const tableHtml = convertTableToHtml(tableLines);
     result.push(tableHtml);
-    console.log('文末表格行数:', tableLines.length, '转换后:', tableHtml);
+    console.log('文末表格行数:', tableLines.length, '转换后HTML:', tableHtml.substring(0, 50) + '...');
+  } else if (inTable) {
+    // 不是有效表格，将收集的行添加回结果
+    result = result.concat(tableLines);
   }
   
   return result.join('\n');
@@ -230,6 +262,7 @@ function convertTableToHtml(tableLines: string[]): string {
   
   console.log('转换表格, 行数:', tableLines.length);
   
+  // 获取表头和分隔符行
   const headerLine = tableLines[0];
   const separatorLine = tableLines[1];
   const dataLines = tableLines.slice(2);
@@ -244,35 +277,43 @@ function convertTableToHtml(tableLines: string[]): string {
     if (cleaned.endsWith('|')) {
       cleaned = cleaned.substring(0, cleaned.length - 1);
     }
-    // 分割并返回非空单元格
+    // 分割并返回所有单元格，保留空单元格
     return cleaned.split('|').map(cell => cell.trim());
   }
   
   // 处理表头
   const headerCells = cleanCells(headerLine);
-  let tableHtml = '<table class="md-table"><thead><tr>';
+  const columnCount = headerCells.length;
   
+  // 开始构建表格HTML - 使用div包装确保响应式滚动
+  let tableHtml = '<div class="table-container">\n<table class="md-table">\n<thead>\n<tr>\n';
+  
+  // 添加表头单元格
   for (const cell of headerCells) {
-    tableHtml += `<th>${cell}</th>`;
+    tableHtml += `  <th>${cell}</th>\n`;
   }
   
-  tableHtml += '</tr></thead><tbody>';
+  tableHtml += '</tr>\n</thead>\n<tbody>\n';
   
   // 处理数据行
   for (const line of dataLines) {
     const cells = cleanCells(line);
-    if (cells.length > 0) {
-      tableHtml += '<tr>';
-      for (const cell of cells) {
-        tableHtml += `<td>${cell}</td>`;
-      }
-      tableHtml += '</tr>';
+    
+    // 确保每行都有正确数量的单元格
+    while (cells.length < columnCount) {
+      cells.push(''); // 添加空单元格以匹配列数
     }
+    
+    tableHtml += '<tr>\n';
+    for (const cell of cells.slice(0, columnCount)) {
+      tableHtml += `  <td>${cell}</td>\n`;
+    }
+    tableHtml += '</tr>\n';
   }
   
-  tableHtml += '</tbody></table>';
+  tableHtml += '</tbody>\n</table>\n</div>';
   
-  console.log('生成HTML表格:', tableHtml.substring(0, 100) + '...');
+  console.log('生成HTML表格，列数:', columnCount);
   
   return tableHtml;
 }

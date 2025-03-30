@@ -17,8 +17,8 @@
   });
 </script>
 
-<header class="w-full bg-base-100 dark:bg-base-100-dark shadow-sm border-b border-base-300 dark:border-base-300-dark">
-  <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+<header class="w-full bg-base-100 dark:bg-base-100-dark shadow-sm border-b border-base-300 dark:border-base-300-dark flex-shrink-0">
+  <div class="w-full px-4 py-2 flex items-center justify-between">
     <!-- Logo and title -->
     <div class="flex items-center gap-3">
       <div class="font-bold text-xl text-primary dark:text-primary-dark">MarkTeX</div>
