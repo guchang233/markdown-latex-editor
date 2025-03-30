@@ -1,0 +1,6 @@
+# SPA fallback
+/* /index.html 200
+
+# 阻止有问题的第三方请求
+/spd/tongji* /blocked-asset.txt 204!
+https://speed.ilink-tk.com/spd/tongji* /blocked-asset.txt 204! 
